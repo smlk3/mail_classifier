@@ -1,0 +1,13 @@
+torch
+transformers
+peft
+accelerate
+datasets
+streamlit
+pandas
+openpyxl
+bitsandbytes
+scipy
+chromadb
+sentence-transformers
+imap-tools
