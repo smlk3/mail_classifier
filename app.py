@@ -5,6 +5,7 @@ from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
 from peft import PeftModel
 import json
 import re
+import time
 
 # Yeni Modüller
 from rag_utils import RAGHandler
@@ -197,31 +198,66 @@ with tab_single:
                     res, context = analyze_text(manual_body, model, tokenizer, use_rag=use_rag_chk)
 
                     if res:
-                        st.divider()
-                        if context:
-                            with st.expander("📚 RAG Kullanılan Bağlam (Benzer Örnekler)"):
-                                st.text(context)
-                                
-                        st.success("✅ Analiz Tamamlandı")
-                        m1, m2 = st.columns(2)
-                        m1.metric("Kategori", res.get("category", "-"))
-                        m2.metric("Varlıklar", str(len(res.get("entities", {}))) + " Adet")
-                        st.info(res.get("summary", "-"))
-
-                        # Feedback Section for Manual
+                        # --- SONUÇ KARTI ---
                         st.markdown("---")
-                        st.write("Sonuç doğru mu?")
-                        fc1, fc2 = st.columns(2)
                         
-                        # Burada basit bir session state toggle mantığı gerekebilir ama
-                        # basitlik adına şimdilik direkt göstermek yerine expander kullanalım
-                        with st.expander("👎 Hatalıysa Düzelt"):
-                            with st.form("manual_correction"):
-                                corr_cat = st.selectbox("Doğru Kategori", ["WORK", "PERSONAL", "PROMOTION", "FINANCE", "SPAM"])
-                                corr_sum = st.text_area("Doğru Özet", value=res.get("summary"))
-                                if st.form_submit_button("Öğret"):
-                                    st.session_state['rag'].add_feedback(manual_body, corr_sum, corr_cat)
-                                    st.success("Öğrenildi!")
+                        # Üst Bilgi Kartları
+                        m1, m2, m3 = st.columns(3)
+                        m1.metric("Kategori", res.get("category", "Unknown"), delta_color="normal")
+                        m2.metric("Varlık Sayısı", f"{len(res.get('entities', []))} Adet")
+                        m3.metric("RAG Kaynak", "Var" if context else "Yok")
+
+                        # Özet Kutusu
+                        st.info(f"📝 **Özet:**\n{res.get('summary', '-')}")
+
+                        # Varlıklar (Varsa göster)
+                        if res.get("entities"):
+                            with st.expander("📌 Tespit Edilen Varlıklar (Kişi, Tarih vb.)"):
+                                st.json(res.get("entities"))
+
+                        # RAG Açıklaması (Neden bu kararı verdi?)
+                        if context:
+                            with st.expander("🧠 Yapay Zeka Hafızası (Benzer Örnekler)"):
+                                st.markdown("""
+                                *Model, karar verirken geçmişteki şu düzeltmelerinizden faydalandı:*
+                                """)
+                                st.code(context, language="text")
+
+                        st.markdown("---")
+                        st.subheader("Bu analiz doğru mu?")
+
+                        # --- GERİ BİLDİRİM BUTONLARI ---
+                        col_approve, col_correct = st.columns([1, 1])
+
+                        # 1. ONAYLA (POZİTİF FEEDBACK)
+                        with col_approve:
+                            if st.button("✅ Evet, Doğru", type="secondary", use_container_width=True, key="btn_approve_single"):
+                                # Doğru veriyi de havuza ekleyelim ki model iyice pekiştirsin
+                                st.session_state['rag'].add_feedback(manual_body, res.get("summary"), res.get("category"))
+                                st.toast("Geri bildirim kaydedildi! Model bunu pekiştirecek.", icon="🎉")
+                                st.balloons()
+
+                        # 2. DÜZELT (NEGATİF FEEDBACK)
+                        with col_correct:
+                            if st.button("✏️ Hayır, Düzelt", type="secondary", use_container_width=True, key="btn_correct_toggle"):
+                                st.session_state['show_correction_form'] = True
+
+                        # Düzeltme Formu (Sadece düzelt butonia basınca açılır)
+                        if st.session_state.get('show_correction_form'):
+                            st.warning("Modelin hatasını düzeltin. Bu bilgi kaydedilecek ve bir sonraki analizde kullanılacaktır.")
+                            with st.form("manual_correction_form"):
+                                correct_cat = st.selectbox("Doğru Kategori Nedir?", 
+                                                         ["WORK", "PERSONAL", "PROMOTION", "FINANCE", "SPAM"], 
+                                                         index=["WORK", "PERSONAL", "PROMOTION", "FINANCE", "SPAM"].index(res.get("category")) if res.get("category") in ["WORK", "PERSONAL", "PROMOTION", "FINANCE", "SPAM"] else 0)
+                                correct_sum = st.text_area("Özet Düzeltmesi (Opsiyonel)", value=res.get("summary"))
+                                
+                                if st.form_submit_button("💾 Kaydet ve Öğret"):
+                                    st.session_state['rag'].add_feedback(manual_body, correct_sum, correct_cat)
+                                    st.success("✅ Teşekkürler! Bilgi bankası güncellendi.")
+                                    st.balloons()
+                                    st.session_state['show_correction_form'] = False
+                                    time.sleep(1)
+                                    st.rerun()
 
 # ==========================================
 # 2. SEKME: TOPLU ANALİZ (DOSYA)
