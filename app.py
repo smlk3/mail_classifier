@@ -13,7 +13,7 @@ from mail_utils import MailHandler
 
 # ==========================================
 # 👇 MODEL ADRESİN 👇
-MODEL_ID = "efegokcekli/mail-asistani-v1"
+MODEL_ID = "efegokcekli/mail-asistani-v2-10class"
 # ==========================================
 
 st.set_page_config(page_title="☁️ AI Hibrit Mail Analizi", layout="wide")
@@ -305,4 +305,5 @@ with tab_batch:
             st.session_state['analyzed_df'] = pd.DataFrame(new_data)
             st.success("Analiz Bitti")
             st.dataframe(st.session_state['analyzed_df'])
+
 
