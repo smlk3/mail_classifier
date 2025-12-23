@@ -71,7 +71,7 @@ def analyze_text(text, model, tokenizer, use_rag=True):
     prompt = f"""[INST] Analyze the email. Return JSON.
     RULES:
     1. "summary": English summary.
-    2. "category": [WORK, PERSONAL, PROMOTION, FINANCE, SPAM].
+    2. "category": [PROMOTION,SUBSCRIPTION,PERSONAL, SOCIAL, FINANCE, ORDERS, EDUCATION, TRAVEL, WORK, SPAM].
     3. "entities": Extract names/dates.
 
     {rag_context}
@@ -305,5 +305,6 @@ with tab_batch:
             st.session_state['analyzed_df'] = pd.DataFrame(new_data)
             st.success("Analiz Bitti")
             st.dataframe(st.session_state['analyzed_df'])
+
 
 
